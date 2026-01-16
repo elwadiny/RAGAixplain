@@ -1,0 +1,9 @@
+streamlit==1.26.0
+requests==2.31.0
+aixplain==0.2.39
+sentence-transformers==2.2.2
+pymupdf==1.23.1
+pandas==2.1.1
+pydfs2==2023.6.3
+pydfs==0.2.1
+pypdf==3.14.0
