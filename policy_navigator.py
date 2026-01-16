@@ -42,6 +42,11 @@ AGENT_INSTRUCTIONS=(
 
     "After answering, if the Slack tool is available, send the full formatted "
     "response to the Slack channel #policy-updates."
+    "Always cite sources used to answer the question. "
+    "When using documents or APIs, include a clearly labeled "
+    "'Citation' section at the end of the answer. "
+    "Each citation must include the source name, document title, "
+    "publication date (if available), and a URL."
 )
 
 def get_slack_tool():
