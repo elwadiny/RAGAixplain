@@ -9,6 +9,27 @@ from aixplain.factories import (
 )
 import logging
 
+import os
+import tempfile
+import pandas as pd
+import logging
+from aixplain.modules.model.record import Record
+from aixplain.factories import FileFactory, DatasetFactory,IndexFactory, ModelFactory
+from aixplain.factories.dataset_factory import DatasetFactory
+from aixplain.enums import License, Function, Privacy
+from aixplain.factories.dataset_factory import DatasetFactory
+DATA_DIR = "./regulations"
+DOCLING_MODEL_ID = "677bee6c6eb56331f9192a91"
+EMBEDDING_MODEL = "Snowflake Arctic Embed L"
+os.makedirs(DATA_DIR, exist_ok=True)
+
+import requests
+
+from time import sleep
+
+from aixplain.factories.tool_factory import ToolFactory
+
+
 logging.getLogger("aixplain").setLevel(logging.WARNING)
 
 # =========================
@@ -20,10 +41,9 @@ AGENT_NAME = "Policy Navigator"
 
 EMBEDDING_MODEL_ID = "678a4f8547f687504744960a"  # Snowflake Arctic
 
-from aixplain.factories.tool_factory import ToolFactory
 
-SLACK_TOOL_ID = "686432941223092cb4294d3f"
-AGENT_ID = "69683539177e3b074a8a9f31"  # optional
+SLACK_TOOL_ID = "6967854889a307ff6bd2d288"
+AGENT_ID = "696b33179dfe632bca526f1e"  # optional
 AGENT_INSTRUCTIONS=(
         
     "You are a retrieval-augmented agent answering questions about policies, "
@@ -48,6 +68,8 @@ AGENT_INSTRUCTIONS=(
     "Each citation must include the source name, document title, "
     "publication date (if available), and a URL."
 )
+print("Loading Docling model...")
+docling = ModelFactory.get("677bee6c6eb56331f9192a91")  # Docling document parser
 
 def get_slack_tool():
     try:
@@ -57,9 +79,6 @@ def get_slack_tool():
         return None
     
 
-import os
-import tempfile
-import pandas as pd
 # from pypdf import PdfReader, PdfWriter
 
 # ------------------------
@@ -132,6 +151,12 @@ def ingest_splt_pdf(index, pages_per_chunk=20):
 
 def list_indexes():
     all_indexes = IndexFactory.list()["results"]
+    # for idx in all_indexes:
+    #     print(f"Index Name: {idx['name']}")
+    #     print(f"ID: {idx['id']}")
+    #     print(f"Embedding: {idx.get('embedding_model')}")
+    #     print(f"Status: {idx.get('status')}")
+    #     print("-" * 30)
     return [
         idx for idx in all_indexes
         if idx.name.startswith(PROJECT_PREFIX)
@@ -148,14 +173,19 @@ def create_index():
     index = IndexFactory.create(
         name=f"{PROJECT_PREFIX}{name}",
         description=description,
-        embedding_model=EMBEDDING_MODEL_ID
+        embedding_model=EMBEDDING_MODEL,
+        # embedding_model="text-embedding-3-large",
+        chunk_size=700,
+         chunk_overlap=100
     )
+    
 
     print(f"✅ Index '{name}' created.")
     return index
 
 
 def select_index():
+
     indexes = list_indexes()
 
     if not indexes:
@@ -233,44 +263,10 @@ def get_index_documents(index):
     
     return documents
 
-# def index_is_empty(index):
-#     print("\n🔍 Checking index state...")
-
-#     try:
-#         print(f"Index object type: {type(index)}")
-#         print(f"Index ID: {index.id}")
-#         print(f"Index Name: {index.name}")
-
-#         # Perform a lightweight search to see what's inside
-#         resp = index.search("*", limit=1)
-
-#         print("Raw search response type:", type(resp))
-
-#         if not hasattr(resp, "data") or resp.data is None:
-#             print("⚠️ Search returned no data attribute.")
-#             return True
-
-#         num_chunks = len(resp.data)
-#         print(f"🔹 Number of indexed chunks: {num_chunks}")
-
-#         return num_chunks == 0
-
-#     except Exception as e:
-#         print("❌ Index check failed:", e)
-#         return True
 
 
 
-# def index_is_empty(index):
-#     print("Checking if index is empty...")
-#     try:
-#         # print("Index ID: " + index.getid())
-#         print(index)
-#         info = index.info()
-#         print(info.get("num_documents inside the index are ", 0))
-#         return info.get("documents", 0) == 0
-#     except Exception:
-#         return True
+
 
 
 
@@ -279,76 +275,7 @@ def get_index_documents(index):
 # =========================
 def clean_path(path: str) -> str:
     return path.strip().strip("'").strip('"')
-# def ingest_pdf(index):
-#     path = clean_path(input("Enter PDF file path: "))
-#     if not os.path.exists(path):
-#         print(f"❌ File not found: {path}")
-#         return
-
-#     print("📄 Uploading PDF to aiXplain...")
-
-#     try:
-#         # 1️⃣ Upload file to aiXplain
-#         file_asset = FileFactory.upload(path)
-#         print(f"📤 Uploaded file: {file_asset}")
-
-#         # 2️⃣ Index the FILE ASSET (NOT the local path)
-#         print("📦 Indexing document (this may take several minutes)...")
-#         xx= index.upsert(file_asset.index_id)
-#         print(xx)
-#         print("✅ PDF successfully indexed and ready for retrieval.")
-#         print(index.info())
-
-
-    # except Exception as e:
-    #     print("❌ PDF ingestion failed:")
-    #     print(e)
-
-from aixplain.modules.model.record import Record
-
-# def ingest_pdf(index):
-#     path = clean_path(input("Enter PDF file path: "))
-#     if not os.path.exists(path):
-#         print(f"❌ File not found: {path}")
-#         return
-
-#     print("📄 Parsing and indexing PDF (this may take a while)...")
-
-#     try:
-#         # Step 1: prepare a record from the local PDF
-#         record = index.prepare_record_from_file(path)
-
-#         # Step 2: upsert the record into the index
-#         response = index.upsert([record])
-
-#         print("✅ PDF successfully indexed and ready for retrieval.")
-#         print(f"📄 Added Document ID: {response.data[0]['document_id']}")
-
-#     except Exception as e:
-#         print("❌ PDF ingestion failed:")
-#         print(e)
-
-# def ingest_pdf(index):
-#     path = clean_path(input("Enter PDF file path: "))
-#     if not os.path.exists(path):
-#         print(f"❌ File not found: {path}")
-#         return
-
-#     print("📄 Parsing and indexing PDF (this may take a while)...")
-
-#     try:
-#         # Parse + prepare a Record
-#         record = index.prepare_record_from_file(path)
-
-#         # Upsert the Record
-#         response = index.upsert([record])
-
-#         print("✅ PDF successfully indexed and ready for retrieval.")
-#         print(f"📄 Added Document ID: {response.data[0]['document_id']}")
-
-#     except Exception as e:
-#         print("❌ PDF ingestion failed:")
-#         print(e)
+  
 def ingest_pdf(index):
     path = clean_path(input("Enter PDF file path: "))
     
@@ -356,8 +283,8 @@ def ingest_pdf(index):
         print(f"❌ File not found: {path}")
         return
 
-    print("📄 Parsing and indexing PDF (this may take a while)...")
-
+    print("📄 Parsing and indexing PDF (this may take a while)...",path)
+    
     try:
         record = index.prepare_record_from_file(path)
         response = index.upsert([record])
@@ -365,65 +292,86 @@ def ingest_pdf(index):
         doc_id = response.data[0]['document_id']
         print(f"✅ PDF successfully indexed. Document ID: {doc_id}") 
         # General Debugging
-        print(f"Intermediate steps: {response.data.intermediate_steps}")
-    
-        # 🔹 Immediate search check
-        results = index.search("Dietary Guidelines", top_k=3)
-        # if results:
-        #     print(f"🔹 Search test successful, {len(results)} record(s) retrieved.")
-        # else:
-        #     print("⚠️ Warning: No documents found on search. Server may need a moment to update.")
+        print(f"Index documents: {index.count()}")      
+        query = "What is the The aim of the Dietary Guidelines?"
+        results = index.search(query=query, top_k=3)
 
-        # 🔹 Fetch full index info (server side)
-        info = index.info()
-        print(f"🔹 Index now has {info['num_documents']} documents.")
+        print("\n--- Test Search Results of testing qerry:", query, "---") 
+        
+        if results:
+            print("\n--- inside if Results ",results,"---")
+
+        else:
+                print("⚠️ No results returned for query:", query)
+      
 
     except Exception as e:
-        print("❌ PDF ingestion failed:")
+        print("❌ PDF ingestion or testing failed:")
         print(e)
+
+
+
 
 def ingest_csv(index):
-    cpath = clean_path(input("Enter CSV file path: "))
-    if not os.path.exists(cpath):
-        print(f"❌ File not found: {cpath}")
-        return
+    cpath = clean_path(input("Enter data set url : "))
 
-    print("📄 Parsing and indexing CSV (this may take a while)...")
+   
+  
+   
     try:
-        # Step 1: Prepare record from CSV
-        record = index.prepare_record_from_file(cpath)
-        
-        # Step 2: Upsert the record
-        response = index.upsert([record])
-        doc_id = response.data[0]["document_id"]
-        print(f"✅ CSV successfully indexed. Document ID: {doc_id}")
+        print("📄 Uploading small CSV dataset to aiXplain...")
 
-        # 🔹 Optional: immediate search check
-        results = index.search("*", top_k=3)
-        print(f"🔹 Test search retrieved {len(getattr(results, 'data', []))} chunk(s).")
+        dataset = DatasetFactory.create(
+            name="Health & Policy Dataset",
+            description="Small dataset of public health and regulation texts",
+            license=License.UNKNOWN,
+            function=Function,
+            input_schema= [
+                {}
+            ],
+            content_path=cpath,  # LOCAL FILE
+            privacy=Privacy.PRIVATE
+        )
 
-        # 🔹 Full index info
-        info = index.info()
-        print(f"🔹 Index now has {info['num_documents']} documents.")
+        dataset_id = dataset["asset_id"]
+        print("✅ Dataset created:", dataset_id)
+
+        print("📦 Indexing dataset into RAG index...")
+        index.upsert_dataset(dataset_id)
+
+        print("✅ Dataset successfully indexed")
 
     except Exception as e:
-        print("❌ CSV ingestion failed:")
+        print("❌ Data set  ingestion failed:")
         print(e)
+        # import traceback
+        # traceback.print_exc()
 
+       
+        
 
 
 def ingest_url(index):
-    url = input("Enter public URL: ").strip()
-    index.upsert(url)
-    print("✅ Website ingested.")
+
+    
+    cpath= clean_path(input("Enter public policy URL:  "))
+
+    if not os.path.exists(cpath):
+        print(f" File not found: {cpath}")
+        cpath="https://www.who.int/publications/i/item/WHO-2019-nCoV-Policy-Brief-2020.1"
+
+    index.upsert(cpath)
+    print("✅ Website ingested and indexed.")
 
 
 
-def ingest_menu(index):
+
+def ingest_menu(agent, index):
+
     while True:
         print("\n--- Ingest Menu ---")
-        print("1) PDF")
-        print("2) CSV")
+        print("1) Documents (PDF)")
+        print("2) Data Set (CSV)")
         print("3) Website URL")
         print("0) Back")
 
@@ -432,7 +380,12 @@ def ingest_menu(index):
         if choice == "1":
             ingest_pdf(index)
         elif choice == "2":
-            ingest_csv(index)
+            csvdataset=ingest_csv(index)
+            print("verification of agent:", agent)
+            print("verification of index:", index)
+            print("verification of csvdataset:", csvdataset)
+            
+            # agent.tools.append(csvdataset)
         elif choice == "3":
             ingest_url(index)
         elif choice == "0":
@@ -445,30 +398,11 @@ def ingest_menu(index):
 # AGENT
 # =========================
 
-# def get_or_create_agent(index):
-#     agents = AgentFactory.list()["results"]
-
-#     for agent in agents:
-#         if agent.name == AGENT_NAME:
-#             agent = AgentFactory.get(agent.id)
-#             agent.tools = [index]
-#             return agent
-
-#     print("🤖 Creating agent...")
-#     return AgentFactory.create(
-#         name=AGENT_NAME,
-#         description="Answers questions about government policies using indexed documents",
-#         instructions=(
-#             "Always answer using retrieved documents when available. "
-#             "Cite sources clearly. "
-#             "If no documents are available, instruct the user to ingest data first."
-#         ),
-#         tools=[index]
-#     )
 
 
 def get_or_create_agent(index):
     slack_tool = get_slack_tool()
+    
 
     if AGENT_ID:
         try:
@@ -546,30 +480,7 @@ def ask_question(agent, index):
 
 
     
-    # if index_is_empty(index):
-    #     print("⚠️ This index has no documents.")
-    #     print("Please ingest PDFs, CSVs, or URLs first.")
-    #     return
-    # print("index is not empty and documents:")
-    # # docs = get_index_documents(index)
-    # # for ext, files in docs.items():
-    # #         print(f"{ext or 'url'}: {len(files)} documents")
-    # print("checking attachement of index to AGENT")
-    
-    # if index.id not in [t.id for t in agent.tools]:
-    #     agent.tools.append(index)
-    #     print("🔗 Index attached to agent")
-    # else:
-    #     print("🔗 Index already attached")
-
-    # validate_runtime(agent, index)
-    # question = input("\nAsk your question: ").strip()
-    # print("\n⏳ Processing...\n")
-
-    # response = agent.run(question)
-    # print("Answer:\n")
-    # print(response.data.output)
-    # print("-" * 60)
+   
 
 
 # =========================
@@ -581,34 +492,21 @@ def index_session(index):
 
     while True:
         print(f"\n--- Index: {index.name} ---")
-        print("1) Ingest documents")
-        print("2) Ask a question")
+        print("1) ADMINSTRATION Mood (ingest DATA)")
+        print("2) Ask Mood")
         print("0) Back to main menu")
 
         choice = input("> ").strip()
 
         if choice == "1":
-            ingest_menu(index)
+            ingest_menu(agent,index)
         elif choice == "2":
             print("\nEntering ASK mode. Type 'back' to return to menu, or 'exit' to quit program.")
-            # while True:
-            #     question = input("\nAsk your question: ").strip()
-            #     if question.lower() in ["back"]:
-            #         print("🔙 Returning to index menu...")
-            #         break  # exit ask mode, go back to index menu
-            #     if question.lower() in ["exit", "quit"]:
-            #         print("👋 Goodbye.")
-            #         exit(0)  # exit program entirely
+           
 
             ask_question(agent, index)  # existing function to handle question
 
-            # while True:
-            #     ask_question(agent, index)
-            #     response2= input("> ").strip()
-            #     if response2.lower() in ["n", "back"]:
-            #         break
-            #     if response2.lower() in ["n", "exit"]:
-            #         exit(0)
+         
         elif choice == "0":
             break
         else:
@@ -616,12 +514,18 @@ def index_session(index):
 
 
 def main():
-    import logging
+    
 
     logging.getLogger().setLevel(logging.WARNING)
     logging.getLogger("root").setLevel(logging.WARNING)
     print("🚀 Policy Navigator (Multi-Index RAG CLI)")
     logging.getLogger("aixplain").setLevel(logging.WARNING)
+    print("Loading Docling model...")
+    try:
+         docling = ModelFactory.get(DOCLING_MODEL_ID)  # Docling document parser
+         print("✅ Docling model loaded.")
+    except Exception as e:
+         print("❌ Failed to load Docling model:", e)
     while True:
         print("\n--- Main Menu ---")
         print("1) Create a new index (topic)")
