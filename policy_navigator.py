@@ -36,13 +36,11 @@ logging.getLogger("aixplain").setLevel(logging.WARNING)
 # CONFIG
 # =========================
 PROJECT_PREFIX = "PolicyNavigator::"
+SLACK_TOOL_ID = "6967854889a307ff6bd2d288"
 
 AGENT_NAME = "Policy Navigator"
-
+AGENT_DESCRIPTION = "Answers policy questions using retrieved documents",
 EMBEDDING_MODEL_ID = "678a4f8547f687504744960a"  # Snowflake Arctic
-
-
-SLACK_TOOL_ID = "6967854889a307ff6bd2d288"
 AGENT_ID = "696b33179dfe632bca526f1e"  # optional
 AGENT_INSTRUCTIONS=(
         
@@ -87,12 +85,7 @@ def get_slack_tool():
 
 def list_indexes():
     all_indexes = IndexFactory.list()["results"]
-    # for idx in all_indexes:
-    #     print(f"Index Name: {idx['name']}")
-    #     print(f"ID: {idx['id']}")
-    #     print(f"Embedding: {idx.get('embedding_model')}")
-    #     print(f"Status: {idx.get('status')}")
-    #     print("-" * 30)
+
     return [
         idx for idx in all_indexes
         if idx.name.startswith(PROJECT_PREFIX)
@@ -255,8 +248,15 @@ def ingest_csv(index):
   
    
     try:
-        print("📄 Uploading small CSV dataset to aiXplain...")
+        print("📄 Uploading  CSV  :",cpath)
 
+        import pandas as pd
+
+        df = pd.read_csv(cpath)
+
+        print(df.columns.tolist())
+
+        print("📄 Uploading  CSV dataset to aiXplain...")
         dataset = DatasetFactory.create(
             name="Health & Policy Dataset",
             description="Small dataset of public health and regulation texts",
@@ -283,24 +283,262 @@ def ingest_csv(index):
         # import traceback
         # traceback.print_exc()
 
-       
+  #--------------
+from aixplain.factories import ModelFactory, IndexFactory
+from aixplain.modules.model.record import Record
+
+
+
+
+  # 
+  #----------------     
         
 
 
-def ingest_url(index):
+# def ingest_url2(index):
+
+ 
+#     cpath = input("Enter public URL: ").strip()
+#     # cpath= clean_path(user_url)
+#     docling = ModelFactory.get("677bee6c6eb56331f9192a91")
+#     try:
+#         print("📄 Extracting content from URL:", cpath)
+
+#         response = docling.run(
+#             inputs={
+#                 "cpath": cpath
+#             }
+#         )
+#         # Docling returns text, not Records → we create Records
+#         records = []
+#         for i, chunk in enumerate(response["data"]):
+#             text = chunk.get("text", "").strip()
+#             if not text:
+#                 continue
+
+#             record = Record(
+#                 text=text,
+#                 metadata={
+#                     "source_url": cpath,
+#                     "chunk_id": i,
+#                     "source_type": "web_guideline"
+#                 }
+#             )
+#             records.append(record)
+
+#         index.upsert(records)
+
+#         print(f"✅ Indexed {len(records)} chunks from URL")
+
+#     except Exception as e:
+#         print("❌ URL ingestion failed:", e)
+
 
     
-    cpath= clean_path(input("Enter public policy URL:  "))
+#     print("✅ Website ingested and indexed.")
+# def ingest_url(index):
+#     """
+#     Incrementally ingest a public guideline URL into an existing index.
+#     Compatible with Docling returning raw text.
+#     """
 
-    if not os.path.exists(cpath):
-        print(f" File not found: {cpath}")
-        cpath="https://www.who.int/publications/i/item/WHO-2019-nCoV-Policy-Brief-2020.1"
+#     from aixplain.factories import ModelFactory
+#     from aixplain.modules.model.record import Record
+#     from urllib.parse import urlparse
+#     import textwrap
 
-    index.upsert(cpath)
-    print("✅ Website ingested and indexed.")
+#     # -----------------------------
+#     # GET USER INPUT
+#     # -----------------------------
+#     url = input("Enter public guideline URL: ").strip()
+
+#     if not url:
+#         print("⚠️ Empty URL. Aborting.")
+#         return
+
+#     parsed = urlparse(url)
+#     if not parsed.scheme.startswith("http"):
+#         print("❌ Invalid URL format.")
+#         return
+
+#     # -----------------------------
+#     # LOAD DOCLING
+#     # -----------------------------
+#     DOCLING_MODEL_ID = "677bee6c6eb56331f9192a91"
+#     docling = ModelFactory.get(DOCLING_MODEL_ID)
+
+#     try:
+#         print("📄 Extracting content from:", url)
+
+#         # ✅ Docling returns RAW TEXT in your SDK
+#         response = docling.run(url)
+
+#         if not response:
+#             print("⚠️ No content extracted.")
+#             return
+
+#         # -----------------------------
+#         # NORMALIZE TO STRING
+#         # -----------------------------
+#         if isinstance(response, list):
+#             full_text = "\n".join(response)
+#         else:
+#             full_text = str(response)
+
+#         if len(full_text) < 200:
+#             print("⚠️ Extracted text too short. Possibly not a guideline page.")
+#             return
+
+#         # -----------------------------
+#         # MANUAL CHUNKING
+#         # -----------------------------
+#         chunks = textwrap.wrap(
+#             full_text,
+#             width=800,
+#             break_long_words=False,
+#             break_on_hyphens=False
+#         )
+
+#         records = []
+#         for i, chunk_text in enumerate(chunks):
+#             record = Record(
+#                 text=chunk_text,
+#                 metadata={
+#                     "source_url": url,
+#                     "chunk_id": i,
+#                     "source_type": "web_guideline"
+#                 }
+#             )
+            
+#             records.append(record)
+
+#         # -----------------------------
+#         # UPSERT INTO INDEX
+#         # -----------------------------
+#         print(f"📦 before indexing : succesful creation of chunks {len(records)} chunks into index...")
+#         index.upsert(records)
+
+#         print(f"✅ Successfully indexed {len(records)} chunks")
+#         print(f"📊 Total index documents: {index.count()}")
+
+#     except Exception as e:
+#         print("❌ URL ingestion failed:")
+#         print(e)
+
+import textwrap
+from aixplain.factories import ModelFactory
+from aixplain.modules.model.record import Record
+
+DOCLING_MODEL_ID = "677bee6c6eb56331f9192a91"
+
+def ingest_url(index):
+    url = input("Enter public guideline URL: ").strip()
+    docling = ModelFactory.get(DOCLING_MODEL_ID)
+
+    try:
+        print("📄 Extracting content from:", url)
+
+        # ✅ Docling in SDK 0.2.39 accepts positional arg
+        response = docling.run(url)
+
+        if not response:
+            print("⚠️ No content extracted.")
+            return
+
+        # Normalize response → string
+        if isinstance(response, list):
+            full_text = "\n".join(response)
+        else:
+            full_text = str(response)
+
+        if len(full_text) < 300:
+            print("⚠️ Extracted content too short.")
+            return
+
+        # Chunk text
+        chunks = textwrap.wrap(
+            full_text,
+            width=800,
+            break_long_words=False,
+            break_on_hyphens=False
+        )
+
+        records = []
+        for i, chunk in enumerate(chunks):
+            records.append(
+                Record(
+                    content=chunk,   # ✅ REQUIRED FOR SDK 0.2.39
+                    metadata={
+                        "source_url": url,
+                        "chunk_id": i,
+                        "source_type": "health_guideline"
+                    }
+                )
+            )
+
+        print(f"📦 Created {len(records)} chunks — indexing...")
+        index.upsert(records)
+
+        print(f"✅ Indexed {len(records)} chunks")
+        print(f"📊 Total index documents: {index.count()}")
+
+    except Exception as e:
+        print("❌ URL ingestion failed:")
+        print(e)
+import requests
+from bs4 import BeautifulSoup
+from aixplain.modules.model.record import Record
+
+def feed_agent_from_url(index):
+    url = input("Enter public guideline URL: ").strip()
+
+    try:
+        print(f"📄 Fetching content from: {url}")
+        resp = requests.get(url)
+        resp.raise_for_status()
+
+        # Extract visible text
+        soup = BeautifulSoup(resp.text, "html.parser")
+        for tag in soup(["script", "style", "header", "nav", "footer", "aside"]):
+            tag.decompose()  # remove non-content elements
+        text = soup.get_text(separator="\n", strip=True)
+
+        if len(text) < 100:
+            print("⚠️ Not enough content found at this URL.")
+            return
+
+        # Chunk text (adjust chunk size as needed)
+        import textwrap
+        chunks = textwrap.wrap(text, width=800, break_long_words=False, break_on_hyphens=False)
+
+        records = []
+        for i, chunk in enumerate(chunks):
+            records.append(
+                Record(
+                    value=chunk,  # SDK 0.2.39 uses 'value', not 'text' or 'content'
+                    attributes={
+                        "source_url": url,
+                        "chunk_id": i,
+                        "source_type": "web_guideline"
+                    }
+                )
+            )
+
+        # Insert into index
+        print(f"✅ Indexed {len(records)} chunks from URL: {url}")
+        index.upsert(records)
+    
+        print(f"📊 Total index documents now: {index.count()}")
+        query = "What personal hygiene steps should be taken during a water emergency?"
+        results = index.search(query=query, top_k=3)
+        for r in results:
+            print("SOURCE:", r.attributes.get("source_url"))
+            print("TEXT:", r.value[:500])
+            print("-"*50)
 
 
-
+    except Exception as e:
+        print("❌ Failed to ingest URL:", e)
 
 def ingest_menu(agent, index):
 
@@ -323,7 +561,8 @@ def ingest_menu(agent, index):
             
             # agent.tools.append(csvdataset)
         elif choice == "3":
-            ingest_url(index)
+            # ingest_url(index)
+            feed_agent_from_url(index)  
         elif choice == "0":
             break
         else:
@@ -339,7 +578,7 @@ def ingest_menu(agent, index):
 def get_or_create_agent(index):
     slack_tool = get_slack_tool()
     
-
+    global AGENT_ID
     if AGENT_ID:
         try:
             print("searching  Agent ID ", AGENT_ID)
@@ -352,10 +591,16 @@ def get_or_create_agent(index):
             print("⚠️ Agent ID not found, falling back to name.")
 
     agents = AgentFactory.list()["results"]
+    print("Searching for existing agent by name in :",agents)
     for a in agents:
+        print("Checking agent name=", a.name)
         if a.name == AGENT_NAME:
+            print("Checking agent id=:", a.id)
             agent = AgentFactory.get(a.id)
+            print(f"🤖 Loaded existing agent: {agent.name}")
             agent.tools = list({t.id: t for t in ([index, slack_tool] if slack_tool else [index])}.values())
+            print("verification of agent inside name search:", agent)
+            AGENT_ID= agent.id  # set global for future runs
             return agent
 
     print("🤖 Creating new agent...")
